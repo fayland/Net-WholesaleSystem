@@ -6,13 +6,14 @@ use warnings;
 use strict;
 use Carp qw/croak/;
 use SOAP::Lite;
+use vars qw/$errstr/;
 
 sub new {
     my $class = shift;
     my $args = scalar @_ % 2 ? shift : { @_ };
     
     # validate
-    $args->{ResellerID} or croak 'ResellerID is required';
+    $args->{resellerID} or croak 'resellerID is required';
     $args->{apiKey}     or croak 'apiKey is required';
 
     if ($args->{is_ote}) {
@@ -22,9 +23,62 @@ sub new {
     }
     
     SOAP::Trace->import('all') if $args->{debug};
+    # Init SOAP
+    $SOAP::Constants::PREFIX_ENV = 'SOAP-ENV';
+    my $soap = SOAP::Lite
+        #->readable(1)
+        ->ns('', 'ns1')
+        ->ns('http://xml.apache.org/xml-soap', 'ns2')
+        ->proxy($args->{url});
+#    $soap->outputxml('true'); # XML
+    $soap->on_action(sub { qq("#$_[0]") });
+    $args->{soap} = $soap;
     
     bless $args, $class;
 }
+
+sub errstr { $errstr }
+
+sub _check_soap {
+    my ($som) = @_;
+    
+    if ($som->fault) {
+        $errstr = $som->faultstring;
+        return;
+    }
+    
+    if ($som->result->{errorMessage}) {
+        $errstr = $som->result->{errorMessage};
+        return;
+    }
+    
+    return 1;
+}
+
+sub balanceQuery {
+    my ($self) = @_;
+    
+    my $soap = $self->{soap};
+    my $method = SOAP::Data->name('balanceQuery')->prefix('ns1');
+    
+    # the XML elements order matters
+    my $ele_resellerID = SOAP::Data->type(
+        xml => '<item><key xsi:type="xsd:string">resellerID</key><value xsi:type="xsd:string">' . $self->{resellerID} . '</value></item>'
+    );
+    my $ele_apiKey = SOAP::Data->type(
+        xml => '<item><key xsi:type="xsd:string">apiKey</key><value xsi:type="xsd:string">' . $self->{apiKey} . '</value></item>'
+    );
+    
+    my $som = $soap->call($method,
+        SOAP::Data->name( param0 => \SOAP::Data->value($ele_resellerID, $ele_apiKey) )->type('ns2:Map')
+    );
+    
+    _check_soap($som) or return;
+    
+    return $som->result->{balance};
+}
+
+
 
 1;
 __END__
@@ -34,11 +88,13 @@ __END__
     use Net::WholesaleSystem;
 
     my $WholesaleSystem = Net::WholesaleSystem->new(
-        ResellerID => $ResellerID,
+        resellerID => $resellerID,
         apiKey     => $apiKey
     );
     
-    
+    # get balance
+    my $balance = $WholesaleSystem->balanceQuery or die $WholesaleSystem->errstr;
+    print $balance;
 
 =head2 DESCRIPTION
 
@@ -47,17 +103,17 @@ VentraIP Wholesale SSL API
 =head3 new
 
     my $WholesaleSystem = Net::WholesaleSystem->new(
-        ResellerID => $ResellerID,
+        resellerID => $resellerID,
         apiKey     => $apiKey
     );
 
 =over 4
 
-=item * C<ResellerID> (required)
+=item * C<resellerID> (required)
 
 =item * C<apiKey> (required)
 
-ResellerID & apiKey, provided by VentraIP Wholesale
+resellerID & apiKey, provided by VentraIP Wholesale
 
 =item * C<is_ote>
 
@@ -69,4 +125,10 @@ enable SOAP::Trace->import('all')
 
 =back
 
-=head3 
+=head3 balanceQuery
+
+    my $balance = $WholesaleSystem->balanceQuery or die $WholesaleSystem->errstr;
+    
+Account Balance Query allows you to obtain the account balance.
+
+
