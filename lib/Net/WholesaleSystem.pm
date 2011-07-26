@@ -62,12 +62,8 @@ sub balanceQuery {
     my $method = SOAP::Data->name('balanceQuery')->prefix('ns1');
     
     # the XML elements order matters
-    my $ele_resellerID = SOAP::Data->type(
-        xml => '<item><key xsi:type="xsd:string">resellerID</key><value xsi:type="xsd:string">' . $self->{resellerID} . '</value></item>'
-    );
-    my $ele_apiKey = SOAP::Data->type(
-        xml => '<item><key xsi:type="xsd:string">apiKey</key><value xsi:type="xsd:string">' . $self->{apiKey} . '</value></item>'
-    );
+    my $ele_resellerID = SOAP::Data->name('item')->type(ordered_hash => [ key => 'resellerID', value => $self->{resellerID} ]);
+    my $ele_apiKey = SOAP::Data->name('item')->type(ordered_hash => [ key => 'apiKey', value => $self->{apiKey} ]);
     
     my $som = $soap->call($method,
         SOAP::Data->name( param0 => \SOAP::Data->value($ele_resellerID, $ele_apiKey) )->type('ns2:Map')
