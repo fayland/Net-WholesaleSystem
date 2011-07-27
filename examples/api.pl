@@ -15,7 +15,23 @@ my $WholesaleSystem = Net::WholesaleSystem->new(
 
 
 my $balance = $WholesaleSystem->balanceQuery or die $WholesaleSystem->errstr;
-print $balance;
+print $balance . "\n";
+
+=pod
+
+my $data = $WholesaleSystem->generateCSR(
+    'numOfYears' => '3',
+    'country' => 'AU',
+    'state'   => 'VIC',
+    'city'    => 'Melbourne',
+    'organisation' => 'VentraIP',
+    'organisationUnit' => 'Systems Admin',
+    'commonName' => 'forums.ventraip.com.au',
+    'emailAddress' => 'webmaster@ventraip.com.au'
+);
+print Dumper(\$data);
+
+=cut
 
 my $csr = <<'CSR';
 -----BEGIN CERTIFICATE REQUEST-----

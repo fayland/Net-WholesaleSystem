@@ -163,6 +163,30 @@ sub reissueCertificate {
     return $som->result;
 }
 
+sub generateCSR {
+    my $self = shift;
+    
+    my $args = scalar @_ % 2 ? shift : { @_ };
+
+    my $ele_resellerID = SOAP::Data->name('item')->type(ordered_hash => [ key => 'resellerID', value => $self->{resellerID} ]);
+    my $ele_apiKey = SOAP::Data->name('item')->type(ordered_hash => [ key => 'apiKey', value => $self->{apiKey} ]);
+    
+    my @args = ($ele_resellerID, $ele_apiKey);
+    foreach my $k (qw/numOfYears country state city organisation organisationUnit commonName emailAddress/) {
+        push @args, SOAP::Data->name('item')->type(ordered_hash => [ key => $k, value => $args->{$k} ]);
+    }
+    
+    my $soap = $self->{soap};
+    my $method = SOAP::Data->name('SSL_generateCSR')->prefix('ns1');
+    my $som = $soap->call($method,
+        SOAP::Data->name( param0 => \SOAP::Data->value(@args) )->type('ns2:Map')
+    );
+    
+    _check_soap($som) or return;
+    
+    return $som->result;
+}
+
 sub decodeCSR {
     my ($self, $csr) = @_;
     
@@ -343,6 +367,21 @@ to obtain information for a SSL certificate you?ve recently purchased
     my $data = $WholesaleSystem->decodeCSR($csr);
     
 decode the certificate signing request (CSR) you have provided to ensure all the details are correct before purchasing the SSL.
+
+=head3 generateCSR
+
+    my $data = $WholesaleSystem->generateCSR(
+        'numOfYears' => '3',
+        'country' => 'AU',
+        'state'   => 'VIC',
+        'city'    => 'Melbourne',
+        'organisation' => 'VentraIP',
+        'organisationUnit' => 'Systems Admin',
+        'commonName' => 'forums.ventraip.com.au',
+        'emailAddress' => 'webmaster@ventraip.com.au'
+    );
+    
+generate the user a Private Key of 2048 bits in size, a Self Signed Certificate and a CSR request.
 
 =head3 purchaseSSLCertificate
 
