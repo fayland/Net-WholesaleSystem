@@ -64,7 +64,7 @@ sub _check_soap {
         return;
     }
     
-    if ($som->result->{errorMessage}) {
+    if ($som->result and exists $som->result->{errorMessage}) {
         $errstr = $som->result->{errorMessage};
         return;
     }
